@@ -1,0 +1,15 @@
+{
+  "name": "web3-loader",
+  "version": "0.0.1",
+  "author": "U-Zyn Chua <chua@uzyn.com>",
+  "description": "web3 loader module for webpack (WIP)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uzyn/web3-loader"
+  },
+  "dependencies": {
+    "loader-utils": "0.2.x",
+    "web3": "^0.15.3"
+  }
+}
