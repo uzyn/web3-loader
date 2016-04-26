@@ -3,14 +3,13 @@ var async = require('async');
 var fs = require('fs');
 var parseQuery = require('loader-utils').parseQuery;
 var path = require('path');
-var _eval = require('eval');
 var web3 = require('./web3');
 
 module.exports = function (source) {
   var loaderCallback = this.async();
   this.cacheable && this.cacheable();
 
-  var contracts = _eval(source);
+  var contracts = this.exec(source);
   var tasks = [];
 
   for (var name in contracts) {
