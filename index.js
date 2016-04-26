@@ -1,30 +1,42 @@
 'use strict';
 var async = require('async');
+var fs = require('fs');
 var parseQuery = require('loader-utils').parseQuery;
+var path = require('path');
 var web3 = require('./web3');
-var _eval = require('eval');
 
 module.exports = function (source) {
   var loaderCallback = this.async();
   this.cacheable && this.cacheable();
 
-  var contracts = _eval(source);
-  var tasks = []
-
+  var contracts = this.exec(source);
+  var tasks = [];
   for (var name in contracts) {
     var contract = contracts[name];
-    tasks.push(contract);
+    tasks.push({
+      name: name,
+      abi: contract.abi,
+      bytecode: contract.bytecode
+    });
   }
 
+  var web3Source = fs.readFileSync(path.join(__dirname, 'web3.js'), 'utf8');
+  var output = web3Source + '\n';
+  output += 'module.exports = {\n';
+
   async.map(tasks, deploy, function (err, results) {
-    console.log(results);
-    return loaderCallback(null, source);
+    var instances = [];
+    for (var result of results) {
+      contracts[result.name]['address'] = result.address;
+      output += JSON.stringify(result.name) + ': ' + 'web3.eth.contract(' + JSON.stringify(contracts[result.name]['abi']) + ').at(' + JSON.stringify(result.address) + '),\n';
+    }
+    output += 'web3: web3\n};\n';
+    return loaderCallback(null, output);
   });
 };
 
 function deploy(contract, callback) {
-  console.log('deploying ' + contract.name);
-  var web3Contract = web3.eth.contract(contract.interface);
+  var web3Contract = web3.eth.contract(contract.abi);
   web3Contract.new({
     from: web3.eth.accounts[0],
     data: contract.bytecode,
