@@ -1,8 +1,10 @@
 'use strict';
 var async = require('async');
+var fs = require('fs');
 var parseQuery = require('loader-utils').parseQuery;
-var web3 = require('./web3');
+var path = require('path');
 var _eval = require('eval');
+var web3 = require('./web3');
 
 module.exports = function (source) {
   var loaderCallback = this.async();
@@ -27,7 +29,9 @@ module.exports = function (source) {
       contracts[result.name]['instance'] = '__' + result.name + '__REPLACE_INSTANCE__';
     }
 
-    var loaderOutput = 'module.exports = ' + JSON.stringify(contracts) + ';';
+    var web3Source = fs.readFileSync(path.join(__dirname, 'web3.js'), 'utf8');
+    var loaderOutput = web3Source;
+    loaderOutput += 'module.exports = ' + JSON.stringify(contracts) + ';';
     for (var replacement of replacements) {
       loaderOutput = loaderOutput.replace('"' + replacement.replace + '"', replacement.with);
     }
