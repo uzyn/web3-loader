@@ -9,7 +9,7 @@ module.exports = function (source) {
   this.cacheable && this.cacheable();
 
   var contracts = _eval(source);
-  var tasks = []
+  var tasks = [];
 
   for (var name in contracts) {
     var contract = contracts[name];
@@ -17,13 +17,26 @@ module.exports = function (source) {
   }
 
   async.map(tasks, deploy, function (err, results) {
-    console.log(results);
-    return loaderCallback(null, source);
+    var replacements = [];
+    for (var result of results) {
+      contracts[result.name]['address'] = result.address;
+      replacements.push({
+        replace: '__' + result.name + '__REPLACE_INSTANCE__',
+        with: 'web3.eth.contract(' + JSON.stringify(contracts[result.name]['interface']) + ').at(' + JSON.stringify(result.address) + ')'
+      });
+      contracts[result.name]['instance'] = '__' + result.name + '__REPLACE_INSTANCE__';
+    }
+
+    var loaderOutput = 'module.exports = ' + JSON.stringify(contracts) + ';';
+    for (var replacement of replacements) {
+      loaderOutput = loaderOutput.replace('"' + replacement.replace + '"', replacement.with);
+    }
+
+    return loaderCallback(null, loaderOutput);
   });
 };
 
 function deploy(contract, callback) {
-  console.log('deploying ' + contract.name);
   var web3Contract = web3.eth.contract(contract.interface);
   web3Contract.new({
     from: web3.eth.accounts[0],
