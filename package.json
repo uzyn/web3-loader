@@ -9,6 +9,8 @@
     "url": "https://github.com/uzyn/web3-loader"
   },
   "dependencies": {
+    "async": "^2.0.0-rc.3",
+    "eval": "^0.1.1",
     "loader-utils": "0.2.x",
     "web3": "^0.15.3"
   }
