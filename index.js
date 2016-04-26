@@ -11,36 +11,32 @@ module.exports = function (source) {
 
   var contracts = this.exec(source);
   var tasks = [];
-
   for (var name in contracts) {
     var contract = contracts[name];
-    tasks.push(contract);
+    tasks.push({
+      name: name,
+      abi: contract.abi,
+      bytecode: contract.bytecode
+    });
   }
 
+  var web3Source = fs.readFileSync(path.join(__dirname, 'web3.js'), 'utf8');
+  var output = web3Source + '\n';
+  output += 'module.exports = {\n';
+
   async.map(tasks, deploy, function (err, results) {
-    var replacements = [];
+    var instances = [];
     for (var result of results) {
       contracts[result.name]['address'] = result.address;
-      replacements.push({
-        replace: '__' + result.name + '__REPLACE_INSTANCE__',
-        with: 'web3.eth.contract(' + JSON.stringify(contracts[result.name]['interface']) + ').at(' + JSON.stringify(result.address) + ')'
-      });
-      contracts[result.name]['instance'] = '__' + result.name + '__REPLACE_INSTANCE__';
+      output += JSON.stringify(result.name) + ': ' + 'web3.eth.contract(' + JSON.stringify(contracts[result.name]['abi']) + ').at(' + JSON.stringify(result.address) + '),\n';
     }
-
-    var web3Source = fs.readFileSync(path.join(__dirname, 'web3.js'), 'utf8');
-    var loaderOutput = web3Source;
-    loaderOutput += 'module.exports = ' + JSON.stringify(contracts) + ';';
-    for (var replacement of replacements) {
-      loaderOutput = loaderOutput.replace('"' + replacement.replace + '"', replacement.with);
-    }
-
-    return loaderCallback(null, loaderOutput);
+    output += 'web3: web3\n};\n';
+    return loaderCallback(null, output);
   });
 };
 
 function deploy(contract, callback) {
-  var web3Contract = web3.eth.contract(contract.interface);
+  var web3Contract = web3.eth.contract(contract.abi);
   web3Contract.new({
     from: web3.eth.accounts[0],
     data: contract.bytecode,
