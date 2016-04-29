@@ -59,18 +59,16 @@ function mergeConfig(loaderConfig) {
     // Web3
     provider: 'http://localhost:8545',
 
-    // For deployment (deploy: true)
-    deploy: true,
+    // For deployment
     from: web3.eth.accounts[0],
     gasLimit: web3.eth.getBlock(web3.eth.defaultBlock).gasLimit,
 
-    // To use deployed contracts
-    // Supply all the following:
-    // - deploy: false
-    // - addresses: {
+    // To reuse deployed contracts, include contract addresses in config
+    // - contracts: {
     //   Contract1Name: '0x...........',
     //   Contract2Name: '0x...........',
     // }
+    contracts: {}
   };
 
   var mergedConfig = loaderConfig;
@@ -83,9 +81,18 @@ function mergeConfig(loaderConfig) {
 }
 
 /**
- * Deploy contracts
+ * Deploy contracts, if it is not already deployed
  */
 function deploy(contract, callback) {
+  // Reuse existing contract address
+  if (config.contracts.hasOwnProperty(contract.name)) {
+    return callback(null, {
+      name: contract.name,
+      address: config.contracts[contract.name]
+    });
+  }
+
+  // Deploy a new one
   var web3Contract = web3.eth.contract(contract.abi);
   web3Contract.new({
     from: config.from,
