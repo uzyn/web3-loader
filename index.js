@@ -1,13 +1,16 @@
 'use strict';
 var async = require('async');
 var fs = require('fs');
-var parseQuery = require('loader-utils').parseQuery;
+var loaderUtils = require('loader-utils');
 var path = require('path');
-var web3 = require('./web3');
+
+var config;
+var web3;
 
 module.exports = function (source) {
   var loaderCallback = this.async();
   this.cacheable && this.cacheable();
+  init(this);
 
   var contracts = this.exec(source);
   var tasks = [];
@@ -20,11 +23,15 @@ module.exports = function (source) {
     });
   }
 
-  var web3Source = fs.readFileSync(path.join(__dirname, 'web3.js'), 'utf8');
+  var web3Source = fs.readFileSync(path.join(__dirname, '/lib/web3-helper.js'), 'utf8');
+  web3Source = web3Source.replace('__PROVIDER_URL__', config.provider);
   var output = web3Source + '\n';
   output += 'module.exports = {\n';
 
   async.map(tasks, deploy, function (err, results) {
+    if (err) {
+      return loaderCallback(err);
+    }
     var instances = [];
     for (var result of results) {
       contracts[result.name]['address'] = result.address;
@@ -35,12 +42,55 @@ module.exports = function (source) {
   });
 };
 
+/**
+ * Initialize the loader with web3 and config
+ */
+function init(loader) {
+  var loaderConfig = loaderUtils.getLoaderConfig(loader, 'web3Loader');
+  web3 = require('./lib/web3')(loaderConfig.provider);
+  config = mergeConfig(loaderConfig);
+}
+
+/**
+ * Merge loaderConfig and default configurations
+ */
+function mergeConfig(loaderConfig) {
+  var defaultConfig = {
+    // Web3
+    provider: 'http://localhost:8545',
+
+    // For deployment (deploy: true)
+    deploy: true,
+    from: web3.eth.accounts[0],
+    gasLimit: web3.eth.getBlock(web3.eth.defaultBlock).gasLimit,
+
+    // To use deployed contracts
+    // Supply all the following:
+    // - deploy: false
+    // - addresses: {
+    //   Contract1Name: '0x...........',
+    //   Contract2Name: '0x...........',
+    // }
+  };
+
+  var mergedConfig = loaderConfig;
+  for (var key in defaultConfig) {
+    if (!mergedConfig.hasOwnProperty(key)) {
+      mergedConfig[key] = defaultConfig[key];
+    }
+  }
+  return mergedConfig;
+}
+
+/**
+ * Deploy contracts
+ */
 function deploy(contract, callback) {
   var web3Contract = web3.eth.contract(contract.abi);
   web3Contract.new({
-    from: web3.eth.accounts[0],
+    from: config.from,
     data: contract.bytecode,
-    gas: 1000000,
+    gas: config.gasLimit,
   }, function (err, deployed) {
     if (err) {
       return callback(err);
