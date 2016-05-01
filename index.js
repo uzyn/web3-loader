@@ -28,7 +28,7 @@ module.exports = function (source) {
   var output = web3Source + '\n';
   output += 'module.exports = {\n';
 
-  async.map(tasks, deploy, function (err, results) {
+  async.mapSeries(tasks, deploy, function (err, results) {
     if (err) {
       return loaderCallback(err);
     }
