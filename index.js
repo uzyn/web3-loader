@@ -63,12 +63,21 @@ function mergeConfig(loaderConfig) {
     from: web3.eth.accounts[0],
     gasLimit: web3.eth.getBlock(web3.eth.defaultBlock).gasLimit,
 
-    // To reuse deployed contracts, include contract addresses in config
-    // - contracts: {
-    //   Contract1Name: '0x...........',
-    //   Contract2Name: '0x...........',
+    // Specify contract constructor parameters, if any.
+    // constructorParams: {
+    //   ContractOne: {
+    //    param1: 'value',
+    //    param2: 2000
+    //   }
     // }
-    contracts: {}
+    constructorParams: {},
+
+    // To use deployed contracts instead of redeploying, include contract addresses in config
+    // deployedContracts: {
+    //   ContractOne: '0x...........',
+    //   ContractTwo: '0x...........',
+    // }
+    deployedContracts: {}
   };
 
   var mergedConfig = loaderConfig;
@@ -85,10 +94,10 @@ function mergeConfig(loaderConfig) {
  */
 function deploy(contract, callback) {
   // Reuse existing contract address
-  if (config.contracts.hasOwnProperty(contract.name)) {
+  if (config.deployedContracts.hasOwnProperty(contract.name)) {
     return callback(null, {
       name: contract.name,
-      address: config.contracts[contract.name]
+      address: config.deployedContracts[contract.name]
     });
   }
 

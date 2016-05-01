@@ -67,13 +67,15 @@ Configuration is _not needed_ for most common use cases.
 1. `gasLimit`
     - Maximum gas allowed for deploying of each contracts.
     - Default: latest gasLimit of Ethereum, ie. `web3.eth.getBlock(web3.eth.defaultBlock).gasLimit`
-1. `contracts`
-    - If you would like to reuse existing deployed contracts, specify contract addresses for each contracts.
-    - If a contract address is not found in the list, it would be deployed.
+1. `constructorParams`
+    - Specify contract constructor parameters, if any.
     - Default: `{}` _(empty object)_
     - See next section for example.
-
-
+1. `deployedContracts`
+    - If you would like to use existing deployed contracts, specify contract addresses for each contracts.
+    - If a contract is not found in the list, it would be deployed as usual.
+    - Default: `{}` _(empty object)_
+    - See next section for example.
 
 #### Config style
 
@@ -90,19 +92,28 @@ module.exports = {
     from: '0xFfA57D3e88A24311565C9929F180739E43FBD0aA',
     gasLimit: 100000,
 
-    // To reuse deployed contracts, specify all contract addresses.
-    // Contracts that are not found will be deployed.
-    contracts: {
-      ContractOneName: '0x..............',
-      ContractTwoName: '0x..............'
-    }
+    // Specify contract constructor parameters, if any.
+    // constructorParams: {
+    //   ContractOne: {
+    //    param1: 'value',
+    //    param2: 2000
+    //   }
+    // }
+    constructorParams: {},
+
+    // To use deployed contracts instead of redeploying, include contract addresses in config
+    // deployedContracts: {
+    //   ContractOne: '0x...........',
+    //   ContractTwo: '0x...........',
+    // }
+    deployedContracts: {}
   }
 }
 ```
 
 #### Query style
 
-Query style is also supported but can be tricky for listing of contract addresses.
+Query style is also supported but can be tricky for `constructorParams` and `deployedContracts`.
 
 ```js
 loaders: ['web3?gasLimit=50000&provider=http://example.org:8545']
