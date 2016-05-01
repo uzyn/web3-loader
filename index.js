@@ -63,12 +63,18 @@ function mergeConfig(loaderConfig) {
     from: web3.eth.accounts[0],
     gasLimit: web3.eth.getBlock(web3.eth.defaultBlock).gasLimit,
 
-    // To reuse deployed contracts, include contract addresses in config
-    // - contracts: {
-    //   Contract1Name: '0x...........',
-    //   Contract2Name: '0x...........',
+    // Specify contract constructor parameters, if any.
+    // constructorParams: {
+    //   ContractOne: [ 'param1_value', 'param2_value' ]
     // }
-    contracts: {}
+    constructorParams: {},
+
+    // To use deployed contracts instead of redeploying, include contract addresses in config
+    // deployedContracts: {
+    //   ContractOne: '0x...........',
+    //   ContractTwo: '0x...........',
+    // }
+    deployedContracts: {}
   };
 
   var mergedConfig = loaderConfig;
@@ -85,20 +91,24 @@ function mergeConfig(loaderConfig) {
  */
 function deploy(contract, callback) {
   // Reuse existing contract address
-  if (config.contracts.hasOwnProperty(contract.name)) {
+  if (config.deployedContracts.hasOwnProperty(contract.name)) {
     return callback(null, {
       name: contract.name,
-      address: config.contracts[contract.name]
+      address: config.deployedContracts[contract.name]
     });
   }
 
   // Deploy a new one
-  var web3Contract = web3.eth.contract(contract.abi);
-  web3Contract.new({
+  var params = [];
+  if (config.constructorParams.hasOwnProperty(contract.name)) {
+    params = config.constructorParams[contract.name];
+  }
+  params.push({
     from: config.from,
     data: contract.bytecode,
     gas: config.gasLimit,
-  }, function (err, deployed) {
+  });
+  params.push(function (err, deployed) {
     if (err) {
       return callback(err);
     }
@@ -109,4 +119,7 @@ function deploy(contract, callback) {
       });
     }
   });
+
+  var web3Contract = web3.eth.contract(contract.abi);
+  web3Contract.new.apply(web3Contract, params);
 }
