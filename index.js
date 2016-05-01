@@ -65,10 +65,7 @@ function mergeConfig(loaderConfig) {
 
     // Specify contract constructor parameters, if any.
     // constructorParams: {
-    //   ContractOne: {
-    //    param1: 'value',
-    //    param2: 2000
-    //   }
+    //   ContractOne: [ 'param1_value', 'param2_value' ]
     // }
     constructorParams: {},
 
@@ -102,12 +99,16 @@ function deploy(contract, callback) {
   }
 
   // Deploy a new one
-  var web3Contract = web3.eth.contract(contract.abi);
-  web3Contract.new({
+  var params = [];
+  if (config.constructorParams.hasOwnProperty(contract.name)) {
+    params = config.constructorParams[contract.name];
+  }
+  params.push({
     from: config.from,
     data: contract.bytecode,
     gas: config.gasLimit,
-  }, function (err, deployed) {
+  });
+  params.push(function (err, deployed) {
     if (err) {
       return callback(err);
     }
@@ -118,4 +119,7 @@ function deploy(contract, callback) {
       });
     }
   });
+
+  var web3Contract = web3.eth.contract(contract.abi);
+  web3Contract.new.apply(web3Contract, params);
 }

@@ -69,11 +69,12 @@ Configuration is _not needed_ for most common use cases.
     - Default: latest gasLimit of Ethereum, ie. `web3.eth.getBlock(web3.eth.defaultBlock).gasLimit`
 1. `constructorParams`
     - Specify contract constructor parameters, if any.
+    - Parameters for a contract must be listed in an array form.
     - Default: `{}` _(empty object)_
     - See next section for example.
 1. `deployedContracts`
     - If you would like to use existing deployed contracts, specify contract addresses for each contracts.
-    - If a contract is not found in the list, it would be deployed as usual.
+    - If a contract is not found, it would be deployed at build.
     - Default: `{}` _(empty object)_
     - See next section for example.
 
@@ -94,10 +95,7 @@ module.exports = {
 
     // Specify contract constructor parameters, if any.
     // constructorParams: {
-    //   ContractOne: {
-    //    param1: 'value',
-    //    param2: 2000
-    //   }
+    //   ContractOne: [ 'param1_value', 'param2_value' ]
     // }
     constructorParams: {},
 
