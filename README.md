@@ -6,6 +6,10 @@ Ideally to be used with [solc-loader](https://github.com/uzyn/solc-loader) for s
 
 A web3 provider is required when running `web3-loader`. [testrpc](https://github.com/ethereumjs/testrpc) is handy during development, while [geth](https://github.com/ethereum/go-ethereum) would be useful to test in actual Ethereum environment where blocks are not mined immediately after every actions.
 
+##### Sample code
+
+Sample dapp or starter kit can be found at [uzyn/ethereum-webpack-example-dapp](https://github.com/uzyn/ethereum-webpack-example-dapp).
+
 ## Installation
 
 ```bash
