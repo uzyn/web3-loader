@@ -12,7 +12,7 @@ module.exports = function (source) {
   this.cacheable && this.cacheable();
   init(this);
 
-  var contracts = this.exec(source);
+  var contracts = this.exec(source, '');
   var tasks = [];
   for (var name in contracts) {
     var contract = contracts[name];
