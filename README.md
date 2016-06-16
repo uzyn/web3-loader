@@ -55,10 +55,57 @@ import { MyToken, web3 } from './contract/MyToken.sol';
 
 let currentBlock = web3.eth.blockNumber;
 ```
+### Solidity Contract Dependency Injection
+
+This loader is able to automatically inject address of deployed contract if your contracts depends on it.
+To use dependency injection you will need:
+ - Contracts.sol - a central file which you will `require` in your js
+ - `inject_` constructor variables
+
+Consider such example:
+```
+//Manager.sol
+contract Manager {
+  //Some state + complex stuff that is accessed by other contracts
+}
+
+//SomeContract.sol
+import 'Manager.sol';
+
+contract SomeContract1 {
+
+  address manager;
+
+  function SomeContract(inject_Manager) {
+    manager = inject_Manager;
+  }
+
+  function doSmth() {
+    Manager(manager).someMethod();
+  }
+}
+
+//Contracts.sol will contain just 'import' statements
+import 'SomeContract1';
+```
+
+In JS code:
+```
+var contracts = require('Contracts.sol');
+var SomeContract1 = contracts.SomeContract;
+var Manager = contracts.Manager;
+var web3 = contracts.web3;
+```
+
+In `Contracts.sol` only root contracts can be specified. Loader automatically builds dependency
+graph based on `import` statements and `inject_` constructor variables.
+Run `webpack -d` to see debug information on the order of deployment.
+
+If your construct must accept other variables they should be placed before because loader just appends injected contract addresses to the end of `constructorParams` config variable.
 
 ## Configuration
 
-Configuration is _not needed_ for most common use cases. 
+Configuration is _not needed_ for most common use cases.
 
 ### Options
 
@@ -84,7 +131,7 @@ Configuration is _not needed_ for most common use cases.
 
 #### Config style
 
-Recommended especially for configuring of contract addresses. 
+Recommended especially for configuring of contract addresses.
 
 ```js
 // webpack.config.js
