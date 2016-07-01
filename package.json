@@ -1,6 +1,6 @@
 {
   "name": "web3-loader",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": "U-Zyn Chua <chua@uzyn.com> (http://uzyn.com)",
   "description": "Ethereum web3.js module for Webpack",
   "license": "MIT",
