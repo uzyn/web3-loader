@@ -23,6 +23,6 @@
     "loader-utils": "0.2.x"
   },
   "peerDependencies": {
-    "web3": "0.15.x"
+    "web3": "*"
   }
 }
