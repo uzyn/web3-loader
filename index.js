@@ -102,6 +102,9 @@ function deploy(contract, callback, contractMap) {
   // Deploy a new one
   var params = resolveConstructorParams(contract, contractMap);
   logDebug('Constructor params ' + contract.name + ':', params);
+  if(contract.bytecode && !contract.bytecode.startsWith('0x')) {
+    contract.bytecode = '0x' + contract.bytecode;
+  }
   params.push({
     from: config.from,
     data: contract.bytecode,
