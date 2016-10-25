@@ -8,7 +8,6 @@ var GraphAlgorithms = require("graphlib/lib/alg");
 
 var config;
 var web3;
-var isDebug;
 
 module.exports = function (compiledContractsSource) {
   var loaderCallback = this.async();
@@ -49,7 +48,6 @@ function init(loader) {
   var loaderConfig = loaderUtils.getLoaderConfig(loader, 'web3Loader');
   web3 = require('./lib/web3')(loaderConfig.provider);
   config = mergeConfig(loaderConfig);
-  isDebug = loader.debug;
 }
 
 /**
@@ -100,8 +98,10 @@ function deploy(contract, callback, contractMap) {
   linkBytecode(contract, contractMap);
 
   // Deploy a new one
-  var params = resolveConstructorParams(contract, contractMap);
-  logDebug('Constructor params ' + contract.name + ':', params);
+  var params = [];
+  if (config.constructorParams.hasOwnProperty(contract.name)) {
+    params = config.constructorParams[contract.name];
+  }
   if(contract.bytecode && !contract.bytecode.startsWith('0x')) {
     contract.bytecode = '0x' + contract.bytecode;
   }
@@ -124,20 +124,6 @@ function deploy(contract, callback, contractMap) {
   web3Contract.new.apply(web3Contract, params);
 }
 
-function resolveConstructorParams(contract, contractMap) {
-  var params = (config.constructorParams[contract.name] || []).slice();
-  var injectableDependencies = getDependenciesFromConstructor(contract.abi);
-  injectableDependencies.forEach(function (dep) {
-    var address = contractMap[dep].address;
-    if (address) {
-      params.push(address);
-    } else {
-      throw Error('Contract ' + dep + ' was not deployed because its address is undefined');
-    }
-  });
-  return params;
-}
-
 function linkBytecode(contract, allContracts) {
   var deps = getDependenciesFromBytecode(contract.bytecode);
   for (var i in deps) {
@@ -153,7 +139,7 @@ function linkBytecode(contract, allContracts) {
 function sortByDependencies(compiledContracts) {
   var depsGraph = buildDependencyGraph(compiledContracts);
   var dependsOrdering = GraphAlgorithms.postorder(depsGraph, depsGraph.nodes());
-  logDebug('Deployment order: ', dependsOrdering);
+  console.log('Deployment order: ', dependsOrdering);
   compiledContracts.sort(function (a, b) {
     return dependsOrdering.indexOf(a.name) - dependsOrdering.indexOf(b.name);
   });
@@ -169,7 +155,7 @@ function buildDependencyGraph(contracts) {
       g.setNode(contractName);
     }
 
-    var deps = getDependencies(contract);
+    var deps = getDependenciesFromBytecode(contract.bytecode);
     for (var j = 0; j < deps.length; j++) {
       var depName = deps[j];
       if (!g.hasNode(depName)) {
@@ -183,30 +169,6 @@ function buildDependencyGraph(contracts) {
     }
   }
   return g;
-}
-
-function getDependencies(contract) {
-  return getDependenciesFromBytecode(contract.bytecode)
-    .concat(getDependenciesFromConstructor(contract.abi));
-}
-
-function getDependenciesFromConstructor(abi) {
-  var PREFIX = "inject_";
-  var onlyUnique = function(value, index, self) {
-    return self.indexOf(value) === index;
-  };
-  var firstConstructorInputs = abi
-    .filter(function (item) { return item.type === "constructor"; })
-    //take only first constructor for injection
-    .filter(function (item, index) { return index === 0; })
-    .map(function (item) { return item.inputs; })[0] || [];
-  var dependencies = firstConstructorInputs
-    .filter(function (input) {
-      return input.name.startsWith(PREFIX) && input.type === "address";
-    })
-    .map(function (input) { return input.name.substring(PREFIX.length); })
-    .filter(onlyUnique);
-  return dependencies;
 }
 
 function getDependenciesFromBytecode(bytecode) {
@@ -227,7 +189,7 @@ function getDependenciesFromBytecode(bytecode) {
 function linkDependency(binary, dependencyName, dependencyAddress) {
   var binAddress = dependencyAddress.replace("0x", "");
   var re = new RegExp("__" + dependencyName + "_*", "g");
-  logDebug('Linking library \'' + dependencyName + '\' at ' + dependencyAddress);
+  console.log('Linking library \'' + dependencyName + '\' at ' + dependencyAddress);
   return binary.replace(re, binAddress);
 }
 
@@ -238,10 +200,4 @@ function toArray(compiledContractsMap) {
     contracts.push(contract);
   }
   return contracts;
-}
-
-function logDebug() {
-  if (isDebug) {
-    Function.prototype.apply.call(console.log, console, arguments);
-  }
 }
