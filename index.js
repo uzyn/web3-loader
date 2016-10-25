@@ -3,42 +3,43 @@ var async = require('async');
 var fs = require('fs');
 var loaderUtils = require('loader-utils');
 var path = require('path');
-var Graph = require("graphlib").Graph;
-var GraphAlgorithms = require("graphlib/lib/alg");
 
 var config;
 var web3;
 
-module.exports = function (compiledContractsSource) {
+module.exports = function (source) {
   var loaderCallback = this.async();
   this.cacheable && this.cacheable();
   init(this);
 
-  var contractMap = this.exec(compiledContractsSource, '');
-  var compiledContracts = toArray(contractMap);
-  sortByDependencies(compiledContracts);
+  var contracts = this.exec(source, '');
+  var tasks = [];
+  for (var name in contracts) {
+    var contract = contracts[name];
+    tasks.push({
+      name: name,
+      abi: contract.abi,
+      bytecode: contract.bytecode
+    });
+  }
 
   var web3Source = fs.readFileSync(path.join(__dirname, '/lib/web3-helper.js'), 'utf8');
   web3Source = web3Source.replace('__PROVIDER_URL__', config.provider);
   var output = web3Source + '\n';
   output += 'module.exports = {\n';
 
-  async.mapSeries(
-    compiledContracts,
-    function (contract, callback) {
-      deploy(contract, callback, contractMap);
-    },
-    function (err, results) {
-      if (err) {
-        return loaderCallback(err);
-      }
-      var instances = [];
-      for (var result of results) {
-        output += JSON.stringify(result.name) + ': ' + 'web3.eth.contract(' + JSON.stringify(result.abi) + ').at(' + JSON.stringify(result.address) + '),\n';
-      }
-      output += 'web3: web3\n};\n';
-      return loaderCallback(null, output);
-    });
+  async.mapSeries(tasks, deploy, function (err, results) {
+    if (err) {
+      return loaderCallback(err);
+    }
+    var instances = [];
+    for (var result of results) {
+      contracts[result.name]['address'] = result.address;
+      output += JSON.stringify(result.name) + ': ' + 'web3.eth.contract(' + JSON.stringify(contracts[result.name]['abi']) + ').at(' + JSON.stringify(result.address) + '),\n';
+    }
+    output += 'web3: web3\n};\n';
+    return loaderCallback(null, output);
+  });
 };
 
 /**
@@ -88,14 +89,14 @@ function mergeConfig(loaderConfig) {
 /**
  * Deploy contracts, if it is not already deployed
  */
-function deploy(contract, callback, contractMap) {
+function deploy(contract, callback) {
   // Reuse existing contract address
   if (config.deployedContracts.hasOwnProperty(contract.name)) {
-    contract.address = config.deployedContracts[contract.name];
-    return callback(null, contract);
+    return callback(null, {
+      name: contract.name,
+      address: config.deployedContracts[contract.name]
+    });
   }
-
-  linkBytecode(contract, contractMap);
 
   // Deploy a new one
   var params = [];
@@ -115,89 +116,13 @@ function deploy(contract, callback, contractMap) {
       return callback(err);
     }
     if (typeof deployed.address !== 'undefined') {
-      contract.address = deployed.address;
-      return callback(null, contract);
+      return callback(null, {
+        name: contract.name,
+        address: deployed.address
+      });
     }
   });
 
   var web3Contract = web3.eth.contract(contract.abi);
   web3Contract.new.apply(web3Contract, params);
-}
-
-function linkBytecode(contract, allContracts) {
-  var deps = getDependenciesFromBytecode(contract.bytecode);
-  for (var i in deps) {
-    var depName = deps[i];
-    var linkedBytecode = linkDependency(
-      contract.bytecode,
-      depName,
-      allContracts[depName].address);
-    contract.bytecode = linkedBytecode;
-  }
-}
-
-function sortByDependencies(compiledContracts) {
-  var depsGraph = buildDependencyGraph(compiledContracts);
-  var dependsOrdering = GraphAlgorithms.postorder(depsGraph, depsGraph.nodes());
-  console.log('Deployment order: ', dependsOrdering);
-  compiledContracts.sort(function (a, b) {
-    return dependsOrdering.indexOf(a.name) - dependsOrdering.indexOf(b.name);
-  });
-}
-
-function buildDependencyGraph(contracts) {
-  var g = new Graph();
-
-  for (var i = 0; i < contracts.length; i++) {
-    var contract = contracts[i];
-    var contractName = contract.name;
-    if (!g.hasNode(contractName)) {
-      g.setNode(contractName);
-    }
-
-    var deps = getDependenciesFromBytecode(contract.bytecode);
-    for (var j = 0; j < deps.length; j++) {
-      var depName = deps[j];
-      if (!g.hasNode(depName)) {
-        g.setNode(depName);
-      }
-
-      g.setEdge(contractName, depName);
-      if (!GraphAlgorithms.isAcyclic(g)) {
-        throw new Error('Dependency ' + contractName + ' -> ' + depName + ' inroduces cycle');
-      }
-    }
-  }
-  return g;
-}
-
-function getDependenciesFromBytecode(bytecode) {
-  // Library references are embedded in the bytecode of contracts with the format
-  //  "__Lib___________________________________" , where "Lib" is your library name and the whole
-  var regex = /__([^_]*)_*/g;
-  var matches;
-  var dependencies = [];
-  while ( (matches = regex.exec(bytecode)) !== null ) {
-    var libName = matches[1];
-    if (dependencies.indexOf(libName) === -1) {
-      dependencies.push(libName);
-    }
-  }
-  return dependencies;
-}
-
-function linkDependency(binary, dependencyName, dependencyAddress) {
-  var binAddress = dependencyAddress.replace("0x", "");
-  var re = new RegExp("__" + dependencyName + "_*", "g");
-  console.log('Linking library \'' + dependencyName + '\' at ' + dependencyAddress);
-  return binary.replace(re, binAddress);
-}
-
-function toArray(compiledContractsMap) {
-  var contracts = [];
-  for (var name in compiledContractsMap) {
-    var contract = compiledContractsMap[name];
-    contracts.push(contract);
-  }
-  return contracts;
 }
