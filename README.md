@@ -90,7 +90,7 @@ import 'SomeContract1';
 ```
 
 In JS code:
-```
+```js
 var contracts = require('Contracts.sol');
 var SomeContract1 = contracts.SomeContract;
 var Manager = contracts.Manager;
